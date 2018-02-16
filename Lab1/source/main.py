@@ -67,7 +67,7 @@ def _main_(_file):
     cor_coef = correlation(x, y)
     reg_coef = line_regression(x, y)
     t_test = stats.ttest_ind(x, y)[0]
-    # make_pdf(cor_coef, t_test, reg_coef[0], reg_coef[1])
+    make_pdf(cor_coef, t_test, reg_coef[0], reg_coef[1])
     create_table(wine_data)
 
 
