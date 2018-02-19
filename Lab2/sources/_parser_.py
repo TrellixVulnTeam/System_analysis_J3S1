@@ -1,4 +1,5 @@
 class Parser:
+
     def parse(file_path):
         data_file = []
         with open(file_path, 'r') as read_file:
