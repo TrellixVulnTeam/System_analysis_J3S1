@@ -3,7 +3,6 @@ from scipy import stats
 import matplotlib.pyplot as plt
 import fpdf
 import numpy as np
-import math
 
 file = "..\\resources\\winequality-red.txt"
 
@@ -16,7 +15,6 @@ def _conf_interval(x, conf_level=0.95):
     center = (bins[:-1] + bins[1:]) / 2
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.bar(center, hist, align='center', width=width)
-    plt.title('Histogram')
     plt.savefig('..\\resources\\hist.png')
     plt.show()
 
@@ -26,22 +24,12 @@ def _conf_interval(x, conf_level=0.95):
     return mean_[0], mean_[1], variance_[0], variance_[1]
 
 
-def check_hypoth_with_unknown_variance(x, y):
-    x_mean = np.mean(x)
-    y_mean = np.mean(y)
-    n_x = len(x)
-    n_y = len(y)
-    x_std = np.std(x)
-    y_std = np.std(y)
-    t = (x_mean - y_mean) / np.sqrt(
-        ((n_x + n_y) / n_x * n_y) * (x_std ** 2 * (n_x - 1) + y_std ** 2 * (n_y - 1)) / (n_x + n_y - 2))
-
+def check_hypothesis_unknown_variance(x, y):
     t_test = stats.ttest_ind(np.asarray(x), np.asarray(y))
+    return t_test, (t_test[1] > 0.01 and t_test < 0.05)
 
-    print(t, t_test)
 
-
-def make_pdf(mean, mean_interval, var, var_interval):
+def make_pdf(mean, mean_interval, var, var_interval, t_stat, p_val, h_status):
     _file = fpdf.FPDF()
     _file.add_page()
     _file.set_font("Arial", size=12)
@@ -51,6 +39,13 @@ def make_pdf(mean, mean_interval, var, var_interval):
     _file.cell(200, 10, 'Variance: %g' % var, 0, 1, 'L')
     _file.cell(200, 10, 'Variance`s interval: %g < %g < %g' % (var_interval[0], var, var_interval[1]), 0, 1, 'L')
     _file.image('..\\resources\\hist.png', 0, 70, 200, 100)
+    _file.add_page()
+    _file.cell(200, 10, 'Hypothesis check ', 0, 1, 'C')
+    _file.cell(200, 10, 'H0: mean(x) = mean(y)', 0, 1, 'L')
+    _file.cell(200, 10, 'H1: mean(x) != mean(y)', 0, 1, 'L')
+    _file.cell(200, 10, 't-statistic: %f' % t_stat, 0, 1, 'L')
+    _file.cell(200, 10, 'p-value: %f' % p_val, 0, 1, 'L')
+    _file.cell(200, 10, 'Hypothesis status: %s' % h_status, 0, 1, 'L')
     _file.output("../resources/result.pdf")
 
 
@@ -63,9 +58,7 @@ def _main_(file_name_):
         x.append(float(item[7]))
         y.append(float(item[10]))
 
-    # mean, mean_interval, var, var_interval = _conf_interval(x)
-    # make_pdf(mean, mean_interval, var, var_interval)
-    check_hypoth_with_unknown_variance(x, y)
-
-
+    mean, mean_interval, var, var_interval = _conf_interval(x)
+    test_values, hyp_status = check_hypothesis_unknown_variance(x, y)
+    make_pdf(mean, mean_interval, var, var_interval, test_values[0], test_values[1], hyp_status)
 _main_(file)
