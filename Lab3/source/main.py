@@ -40,8 +40,11 @@ def img_correlation(img1, img2):
     return sign.correlate2d(x, y)
 
 
-def hyp_check():
-    print()
+# Hypothesis check
+def hyp_check(_dataset):
+    chi2, p = st.chisquare(_dataset)
+    msg = "Test Statistic: {}\np-value: {}"
+    print(msg.format(chi2, p))
 
 
 def main():
@@ -57,7 +60,12 @@ def main():
     print("Histogram correlation: ", hist_correlation_coef)
 
     img_correl1 = img_correlation(image1, image2)
-    print(hist_correlation_coef, '\n', img_correl1)
+    print(img_correl1)
+
+    x = [9, 10, 12, 11, 8, 10]
+    y = [6, 5, 14, 15, 11, 9]
+    hyp_check(x)
+    hyp_check(y)
 
 
 if __name__ == "__main__":
