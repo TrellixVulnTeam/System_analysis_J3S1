@@ -53,15 +53,17 @@ def main():
 
     hist1, hist_stat1 = img_histogram(image1)
     hist2, hist_stat2 = img_histogram(image2)
-    print("First image statistic: ", hist_stat1)
-    print("Second image statistic: ", hist_stat2)
+    print('Average, rms, mode, median')
+    print("First image: ", hist_stat1)
+    print("Second image: ", hist_stat2)
 
     hist_correlation_coef = np.corrcoef(np.asarray(hist1).flatten(), np.asarray(hist2).flatten())[1, 0]
     print("Histogram correlation: ", hist_correlation_coef)
 
     img_correl1 = img_correlation(image1, image2)
-    print(img_correl1)
+    print('Images` correlation', img_correl1)
 
+    print('\nHypothesis:\n')
     x = [9, 10, 12, 11, 8, 10]
     y = [6, 5, 14, 15, 11, 9]
     hyp_check(x)

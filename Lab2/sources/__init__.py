@@ -26,7 +26,7 @@ def _conf_interval(x, conf_level=0.95):
 
 def check_hypothesis_unknown_variance(x, y):
     t_test = stats.ttest_ind(np.asarray(x), np.asarray(y))
-    return t_test, (t_test[1] > 0.01 and t_test < 0.05)
+    return t_test, (0.01 < t_test[1] < 0.05)
 
 
 def make_pdf(mean, mean_interval, var, var_interval, t_stat, p_val, h_status):
@@ -61,4 +61,6 @@ def _main_(file_name_):
     mean, mean_interval, var, var_interval = _conf_interval(x)
     test_values, hyp_status = check_hypothesis_unknown_variance(x, y)
     make_pdf(mean, mean_interval, var, var_interval, test_values[0], test_values[1], hyp_status)
+
+
 _main_(file)
