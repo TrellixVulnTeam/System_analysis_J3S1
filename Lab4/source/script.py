@@ -5,16 +5,19 @@ import re
 import os
 import codecs
 from sklearn import feature_extraction
+import matplotlib.pyplot as plt
+import matplotlib as mpl
 from nltk.stem.snowball import SnowballStemmer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import KMeans
+from sklearn.manifold import MDS
 
 # import mpld3
 
-files = [['textmining1.txt', 'textmining2.txt', 'textmining3.txt', 'textmining4.txt', 'textmining5.txt'],
-         ['genetics1.txt', 'genetics2.txt', 'genetics3.txt', 'genetics4.txt', 'genetics5.txt'],
-         ['physics1.txt', 'physics2.txt', 'physics3.txt', 'physics4.txt', 'physics5.txt']]
+files = [['genetics1.txt', 'textmining2.txt', 'physics3.txt', 'textmining4.txt', 'physics5.txt'],
+         ['textmining1.txt', 'genetics2.txt', 'genetics3.txt', 'genetics4.txt', 'textmining5.txt'],
+         ['physics1.txt', 'physics2.txt', 'textmining3.txt', 'physics4.txt', 'genetics5.txt']]
 
 num_clusters = 3
 
@@ -55,7 +58,6 @@ def tokenize_only(text):
 
 def transform_text(texts):
     # stopwords = nltk.corpus.stopwords.words('russian')
-
     totalvocab_stemmed = []
     totalvocab_tokenized = []
     for i in texts:
@@ -77,14 +79,68 @@ def vectorization(data):
     terms = tfidf_vectorizer.get_feature_names()
     dist = 1 - cosine_similarity(tfidf_matrix)
 
-    return tfidf_matrix
+    return tfidf_matrix, terms, dist
 
 
 def clustering(data, n_clust):
     km = KMeans(n_clusters=n_clust)
     km.fit(data)
     clusters = km.labels_.tolist()
-    return clusters
+    order_centroids = km.cluster_centers_.argsort()[:, ::-1]
+    return clusters, order_centroids
+
+
+def visualization(clusters, titles, dist):
+    MDS()
+    mds = MDS(n_components=2, dissimilarity="precomputed", random_state=1)
+
+    pos = mds.fit_transform(dist)  # shape (n_components, n_samples)
+
+    xs, ys = pos[:, 0], pos[:, 1]
+
+    # set up colors per clusters using a dict
+    cluster_colors = {0: '#1b9e77', 1: '#d95f02', 2: '#7570b3'}
+
+    # set up cluster names using a dict
+    cluster_names = {0: 'Genetic',
+                     1: 'Text Mining',
+                     2: 'Physic'}
+
+    df = pd.DataFrame(dict(x=xs, y=ys, label=clusters, title=titles))
+
+    groups = df.groupby('label')
+
+    # set up plot
+    fig, ax = plt.subplots(figsize=(13, 7))  # set size
+    ax.margins(0.05)  # Optional, just adds 5% padding to the autoscaling
+
+    # iterate through groups to layer the plot
+    # note that I use the cluster_name and cluster_color dicts with the 'name' lookup to return the appropriate color/label
+    for name, group in groups:
+        ax.plot(group.x, group.y, marker='o', linestyle='', ms=12,
+                label=cluster_names[name], color=cluster_colors[name],
+                mec='none')
+        ax.set_aspect('auto')
+        ax.tick_params(
+            axis='x',  # changes apply to the x-axis
+            which='both',  # both major and minor ticks are affected
+            bottom='off',  # ticks along the bottom edge are off
+            top='off',  # ticks along the top edge are off
+            labelbottom='off')
+        ax.tick_params(
+            axis='y',  # changes apply to the y-axis
+            which='both',  # both major and minor ticks are affected
+            left='off',  # ticks along the bottom edge are off
+            top='off',  # ticks along the top edge are off
+            labelleft='off')
+
+    ax.legend(numpoints=1)  # show legend with only 1 point
+
+    # add label in x,y position with the label as the film title
+    for i in range(len(df)):
+        ax.text(df.ix[i]['x'], df.ix[i]['y'], df.ix[i]['title'], size=8)
+
+    plt.show()
 
 
 def main():
@@ -100,13 +156,25 @@ def main():
 
     vocab_frame = pd.DataFrame({'words': totalvocab_tokenized}, index=totalvocab_stemmed)
 
-    vect_data = vectorization(texts)
-    clusters = clustering(vect_data, num_clusters)
+    vect_data, terms, dist = vectorization(texts)
+    clusters, centroids = clustering(vect_data, num_clusters)
 
-    p_texts = { 'title': titles, 'cluster': clusters}
+    p_texts = {'title': titles, 'cluster': clusters}
     frame = pd.DataFrame(p_texts, index=[clusters], columns=['title', 'cluster'])
 
-    print(clusters)
+    for i in range(num_clusters):
+        print("Cluster %d words:" % i, end=' ')
+
+        for ind in centroids[i, :(num_clusters + 1)]:
+            print(' %s' % vocab_frame.ix[terms[ind].split(' ')].values.tolist()[0][0], end=', ')
+        print('\n')
+
+        print("Cluster %d texts:\n" % i, end='')
+        for title in frame.ix[i]['title'].values.tolist():
+            print(' %s' % title, end='')
+        print('\n\n')
+
+    visualization(clusters, titles, dist)
 
 
 if __name__ == '__main__':
