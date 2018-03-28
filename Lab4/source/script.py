@@ -1,12 +1,8 @@
-import numpy as np
 import pandas as pd
 import nltk
 import re
-import os
-import codecs
-from sklearn import feature_extraction
 import matplotlib.pyplot as plt
-import matplotlib as mpl
+from mpl_toolkits.mplot3d import Axes3D
 from nltk.stem.snowball import SnowballStemmer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -92,11 +88,11 @@ def clustering(data, n_clust):
 
 def visualization(clusters, titles, dist):
     MDS()
-    mds = MDS(n_components=2, dissimilarity="precomputed", random_state=1)
+    mds = MDS(n_components=3, dissimilarity="precomputed", random_state=1)
 
     pos = mds.fit_transform(dist)  # shape (n_components, n_samples)
 
-    xs, ys = pos[:, 0], pos[:, 1]
+    xs, ys, zs = pos[:, 0], pos[:, 1], pos[:, 2]
 
     # set up colors per clusters using a dict
     cluster_colors = {0: '#1b9e77', 1: '#d95f02', 2: '#7570b3'}
@@ -106,11 +102,11 @@ def visualization(clusters, titles, dist):
                      1: 'Text Mining',
                      2: 'Physic'}
 
-    df = pd.DataFrame(dict(x=xs, y=ys, label=clusters, title=titles))
+    df = pd.DataFrame(dict(x=xs, y=ys, z=zs, label=clusters, title=titles))
 
     groups = df.groupby('label')
 
-    # set up plot
+    #set up plot
     fig, ax = plt.subplots(figsize=(13, 7))  # set size
     ax.margins(0.05)  # Optional, just adds 5% padding to the autoscaling
 
@@ -138,9 +134,19 @@ def visualization(clusters, titles, dist):
 
     # add label in x,y position with the label as the film title
     for i in range(len(df)):
-        ax.text(df.ix[i]['x'], df.ix[i]['y'], df.ix[i]['title'], size=8)
+        ax.text(df.ix[i]['x'], df.ix[i]['y'], df.ix[i]['title'], size=6)
 
     plt.show()
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    for name, group in groups:
+        ax.plot(group.x, group.y, group.z, marker='o', linestyle='', ms=8,
+                 label=cluster_names[name], color=cluster_colors[name],
+                 mec='none')
+
+    plt.show()
+
 
 
 def main():
