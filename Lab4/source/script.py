@@ -9,11 +9,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import KMeans
 from sklearn.manifold import MDS
 
-# import mpld3
-
-files = [['genetics1.txt', 'textmining2.txt', 'physics3.txt', 'textmining4.txt', 'physics5.txt'],
-         ['textmining1.txt', 'genetics2.txt', 'genetics3.txt', 'genetics4.txt', 'textmining5.txt'],
-         ['physics1.txt', 'physics2.txt', 'textmining3.txt', 'physics4.txt', 'genetics5.txt']]
+files = [['genetics1.txt', 'physics1.txt', 'textmining1.txt', 'genetics2.txt', 'physics2.txt'],
+         ['textmining2.txt', 'genetics3.txt', 'physics3.txt', 'textmining3.txt', 'genetics4.txt'],
+         ['physics4.txt', 'textmining4.txt', 'genetics5.txt', 'physics5.txt', 'textmining5.txt']]
 
 num_clusters = 3
 
@@ -81,9 +79,8 @@ def vectorization(data):
 def clustering(data, n_clust):
     km = KMeans(n_clusters=n_clust)
     km.fit(data)
-    clusters = km.labels_.tolist()
-    order_centroids = km.cluster_centers_.argsort()[:, ::-1]
-    return clusters, order_centroids
+
+    return km
 
 
 def visualization(clusters, titles, dist):
@@ -106,12 +103,12 @@ def visualization(clusters, titles, dist):
 
     groups = df.groupby('label')
 
-    #set up plot
+    # set up plot
     fig, ax = plt.subplots(figsize=(13, 7))  # set size
+    ax.set_title('Training')
     ax.margins(0.05)  # Optional, just adds 5% padding to the autoscaling
 
     # iterate through groups to layer the plot
-    # note that I use the cluster_name and cluster_color dicts with the 'name' lookup to return the appropriate color/label
     for name, group in groups:
         ax.plot(group.x, group.y, marker='o', linestyle='', ms=12,
                 label=cluster_names[name], color=cluster_colors[name],
@@ -130,8 +127,6 @@ def visualization(clusters, titles, dist):
             top='off',  # ticks along the top edge are off
             labelleft='off')
 
-    ax.legend(numpoints=1)  # show legend with only 1 point
-
     # add label in x,y position with the label as the film title
     for i in range(len(df)):
         ax.text(df.ix[i]['x'], df.ix[i]['y'], df.ix[i]['title'], size=6)
@@ -140,34 +135,16 @@ def visualization(clusters, titles, dist):
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
+    ax.set_title('Training')
     for name, group in groups:
         ax.plot(group.x, group.y, group.z, marker='o', linestyle='', ms=8,
-                 label=cluster_names[name], color=cluster_colors[name],
-                 mec='none')
+                label=cluster_names[name], color=cluster_colors[name],
+                mec='none')
 
     plt.show()
 
 
-
-def main():
-    titles = []
-    texts = []
-    for i in files:
-        for text in i:
-            title, text_data = get_file_data('../files/' + text)
-            titles.append(title)
-            texts.append(text_data)
-
-    totalvocab_stemmed, totalvocab_tokenized = transform_text(texts)
-
-    vocab_frame = pd.DataFrame({'words': totalvocab_tokenized}, index=totalvocab_stemmed)
-
-    vect_data, terms, dist = vectorization(texts)
-    clusters, centroids = clustering(vect_data, num_clusters)
-
-    p_texts = {'title': titles, 'cluster': clusters}
-    frame = pd.DataFrame(p_texts, index=[clusters], columns=['title', 'cluster'])
-
+def print_result(frame, centroids, vocab_frame, terms):
     for i in range(num_clusters):
         print("Cluster %d words:" % i, end=' ')
 
@@ -180,7 +157,68 @@ def main():
             print(' %s' % title, end='')
         print('\n\n')
 
-    visualization(clusters, titles, dist)
+
+def print_predicted_result(frame):
+    print("Predicted texts:\n")
+    for i in range(num_clusters):
+        print("Cluster %d predicted texts:\n" % i, end='')
+        for title in frame.ix[i]['title'].values.tolist():
+            print(' %s' % title, end='')
+        print('\n\n')
+
+
+def test_model(train, test, kmodel):
+    vectorizer = TfidfVectorizer(max_df=0.8, max_features=200000,
+                                 min_df=0.2, stop_words='english',
+                                 use_idf=True, tokenizer=tokenize_and_stem, ngram_range=(1, 3))
+    vect = vectorizer.fit(train)
+    vect_data = vect.transform(test)
+    predictions = kmodel.predict(vect_data)
+    dist = 1 - cosine_similarity(vect_data)
+    return predictions, dist
+
+
+def main():
+    # Prepare data for creating model
+    titles = []
+    texts = []
+    for i in files:
+        for text in i:
+            title, text_data = get_file_data('../files/' + text)
+            titles.append(title)
+            texts.append(text_data)
+
+    test_titles = titles[9:]
+    test_texts = texts[9:]
+    train_texts = texts[:9]
+    train_titles = titles[:9]
+
+    # Model`s training
+    train_totalvocab_stemmed, train_totalvocab_tokenized = transform_text(train_texts)
+    train_vocab_frame = pd.DataFrame({'words': train_totalvocab_tokenized}, index=train_totalvocab_stemmed)
+
+    train_vect_data, train_terms, train_dist = vectorization(train_texts)  # Create text`s vectors
+
+    # K-means clustering
+    km = clustering(train_vect_data, num_clusters)
+    clusters = km.labels_.tolist()
+    centroids = km.cluster_centers_.argsort()[:, ::-1]
+
+    # Pandas dataframe with results of clustering
+    train_ptexts = {'title': train_titles, 'cluster': clusters}
+    train_frame = pd.DataFrame(train_ptexts, index=[clusters], columns=['title', 'cluster'])
+
+    # Show results
+    print_result(train_frame, centroids, train_vocab_frame, train_terms)
+    visualization(clusters, train_titles, train_dist)
+
+    # Check model
+    predicted_clusters, predicted_dist = test_model(train_texts, test_texts, km)
+
+    # Pandas dataframes with results of checking
+    test_ptexts = {'title': test_titles, 'cluster': predicted_clusters}
+    test_frame = pd.DataFrame(test_ptexts, index=[predicted_clusters], columns=['title', 'cluster'])
+    print_predicted_result(test_frame)
 
 
 if __name__ == '__main__':
